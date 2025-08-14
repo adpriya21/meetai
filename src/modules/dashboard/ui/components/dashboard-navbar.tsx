@@ -1,7 +1,7 @@
 "use client";
 import { useState ,useEffect} from "react";
 import { Button } from "@/components/ui/button";
-import { PanelLeftIcon, PanelBottomCloseIcon, SearchIcon } from "lucide-react";
+import { PanelLeftIcon, PanelLeftCloseIcon, SearchIcon } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { DashboardCommand } from "./dashboard-command";
 
@@ -31,7 +31,7 @@ export const DashboardNavbar = () => {
         <Button className="size-9" variant="outline" onClick={toggleSidebar}>
           {(state === "collapsed" || isMobile) 
             ? <PanelLeftIcon className="size-4" /> 
-            : <PanelBottomCloseIcon className="size-4" />}
+            : <PanelLeftCloseIcon className="size-4" />}
         </Button>
 
         {/* Search Button */}

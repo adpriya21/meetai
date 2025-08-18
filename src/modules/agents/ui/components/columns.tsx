@@ -25,7 +25,10 @@ export const columns: ColumnDef<AgentGetOne>[] = [
 
           <div className="flex items-center gap-x-2">
             <CornerDownRightIcon className="size-3 text-muted-foreground" />
-            <span className="text-muted-foreground max-w-[200px] truncate capitalize">
+            <span
+              className="text-muted-foreground max-w-[200px] truncate"
+              title={row.original.instructions}
+            >
               {row.original.instructions}
             </span>
           </div>
@@ -35,13 +38,16 @@ export const columns: ColumnDef<AgentGetOne>[] = [
   },
   {
     accessorKey: "meetingCount",
-    header: "Meeting",
+    header: "Meetings",
     cell: ({ row }) => {
       return (
-        <Badge variant="secondary" 
-        className="flex items-center gap-x-2 [&>svg]:size-4">
+        <Badge
+          variant="secondary"
+          className="flex items-center gap-x-2 [&>svg]:size-4"
+        >
           <VideoIcon className="text-blue-700" />
-          5 meetings
+          {row.original.meetingCount}
+          {row.original.meetingCount === 1 ? "meeting" : "meetings"}
         </Badge>
       )
     },

@@ -6,33 +6,43 @@ import { ErrorBoundary } from "react-error-boundary";
 import { Suspense } from "react";
 import { AgentsListHeader } from "@/modules/agents/ui/components/list-header";
 import { auth } from "@/lib/auth";
-import {headers} from "next/headers";
-import {redirect} from "next/navigation";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import type { SearchParams } from "nuqs";
+import { loadSearchParams } from "@/modules/agents/params";
 
-const Page = async () => {
+interface Props {
+  searchParams: Promise<SearchParams>;
+}
+
+const Page = async ({ searchParams }: Props) => {
+  const filters = await loadSearchParams(searchParams);
+
   const session = await auth.api.getSession({
     headers: await headers(),
-  
-   });
-   if (!session){
+  });
+
+  if (!session) {
     redirect("/sign-in");
-   }
-  
+  }
+
   const queryClient = getQueryClient();
 
   // Prefetch agents data
-  void queryClient.prefetchQuery(trpc.agents.getMany.queryOptions());
+  void queryClient.prefetchQuery(
+    trpc.agents.getMany.queryOptions({})
+  );
 
   return (
     <>
-    <AgentsListHeader/>
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={<AgentsViewLoading />}>
-        <ErrorBoundary fallback={<AgentsViewLoading />}>
-          <AgentsView />
-        </ErrorBoundary>
-      </Suspense>
-    </HydrationBoundary>
+      <AgentsListHeader />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <Suspense fallback={<AgentsViewLoading />}>
+          <ErrorBoundary fallback={<AgentsViewLoading />}>
+            <AgentsView />
+          </ErrorBoundary>
+        </Suspense>
+      </HydrationBoundary>
     </>
   );
 };

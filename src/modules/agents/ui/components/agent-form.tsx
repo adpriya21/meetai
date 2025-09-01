@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+
 interface AgentFormProps {
   onSuccess?: () => void;
   onCancel: () => void;
@@ -60,12 +61,8 @@ export const AgentForm = ({
     trpc.agents.update.mutationOptions({
       onSuccess: async () => {
         await queryClient.invalidateQueries(
-          trpc.agents.getMany.queryOptions({}));
-        if (initialValues?.id) {
-          await queryClient.invalidateQueries(
-            trpc.agents.getOne.queryOptions({ id: initialValues.id })
-          );
-        }
+          trpc.agents.getMany.queryOptions({}),);
+        
         onSuccess?.();
         toast.success("Agent updated!");
       },

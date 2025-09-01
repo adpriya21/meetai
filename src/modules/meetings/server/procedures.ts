@@ -7,6 +7,7 @@ import { eq, sql, getTableColumns, and, ilike, desc, count, } from "drizzle-orm"
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/constants";
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schema";
+import { MeetingStatus } from "../types";
 
 export const meetingsRouter = createTRPCRouter({
 
@@ -85,11 +86,19 @@ update: protectedProcedure
             .max(MAX_PAGE_SIZE)
             .default(DEFAULT_PAGE_SIZE),
           search: z.string().nullish(),
+          agentId: z.string().nullish(),
+          status: z.enum([
+            MeetingStatus.Upcoming,
+            MeetingStatus.Active,
+            MeetingStatus.Completed,
+            MeetingStatus.Processing,
+            MeetingStatus.Cancelled,
+          ]).nullish(),
         })
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const { search, page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE } =
+      const { search, page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE , status, agentId } =
         input || {};
 
       // Fetch paginated meetings
@@ -104,7 +113,11 @@ update: protectedProcedure
         .where(
           and(
             eq(meetings.userId, ctx.auth.user.id),
-            search ? ilike(meetings.name, `%${search}%`) : undefined
+            search ? ilike(meetings.name, `%${search}%`) : undefined,
+            status ? eq(meetings.status, status): undefined,
+            agentId ? eq(meetings.agentId, agentId): undefined,
+
+
           )
         )
         .orderBy(desc(meetings.createdAt), desc(meetings.id))
@@ -118,7 +131,9 @@ update: protectedProcedure
         .where(
           and(
             eq(meetings.userId, ctx.auth.user.id),
-            search ? ilike(meetings.name, `%${search}%`) : undefined
+            search ? ilike(meetings.name, `%${search}%`) : undefined,
+             status ? eq(meetings.status, status): undefined,
+            agentId ? eq(meetings.agentId, agentId): undefined,
           )
         );
 

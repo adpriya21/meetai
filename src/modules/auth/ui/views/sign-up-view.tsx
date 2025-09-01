@@ -224,7 +224,7 @@ export const SignUpView = () => {
 
           <div className="bg-gradient-to-br from-black via-emerald-700 to-emerald-300 relative hidden md:flex flex-col gap-y-4 items-center justify-center">
             <img src="/logo.svg" alt="Image" className="h-[92px] w-[92px]" />
-            <p className="text-2xl font-semibold text-white">SolAI</p>
+            <p className="text-2xl font-semibold text-white">MeetIQ</p>
           </div>
         </CardContent>
       </Card>

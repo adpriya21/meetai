@@ -7,9 +7,14 @@ import { ErrorState } from "@/components/error-state";
 import { MeetingIdViewHeader } from "../components/meetings-id-view-header";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/hooks/use-confirm";
-
+import { ActiveState } from "../components/active-state";
 import { useState } from "react";
 import { UpdateMeetingDialog } from "../components/update-meeting-dialog";
+import { Upcoming } from "../components/upcoming-state";
+import { ProcessingState } from "../components/processing-state";
+import { CancelledState } from "../components/cancelled-state";
+// 🔹 If you want a Completed component, create one and import it here
+// import { CompletedState } from "../components/completed-state";
 
 interface Props {
   meetingId: string;
@@ -49,6 +54,12 @@ export const MeetingIdView = ({ meetingId }: Props) => {
     await removeMeeting.mutateAsync({ id: meetingId });
   };
 
+  const isActive = data?.status === "active";
+  const isUpcoming = data?.status === "upcoming";
+  const isCancelled = data?.status === "cancelled";
+  const isCompleted = data?.status === "completed";
+  const isProcessing = data?.status === "processing";
+
   return (
     <>
       <RemoveConfirmation />
@@ -64,7 +75,17 @@ export const MeetingIdView = ({ meetingId }: Props) => {
           onEdit={() => setUpdateMeetingDialogOpen(true)}
           onRemove={handleRemoveMeeting}
         />
-        <pre>{JSON.stringify(data, null, 2)}</pre>
+        {isCancelled && <CancelledState />}
+        {isProcessing && <ProcessingState />}
+        {isCompleted && <div>Completed</div>}
+        {isActive && <ActiveState meetingId={meetingId} />}
+        {isUpcoming && (
+          <Upcoming
+            meetingId={meetingId}
+            onCancelMeeting={() => {}}
+            isCancelling={false}
+          />
+        )}
       </div>
     </>
   );

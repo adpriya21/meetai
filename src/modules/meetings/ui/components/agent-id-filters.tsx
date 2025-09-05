@@ -25,7 +25,7 @@ export const AgentIdFilter = () => {
     children: (
       <div className="flex items-center gap-x-2">
         <GeneratedAvatar
-          seed={agent.name}
+          seed={agent.name ?? agent.id}
           variant="botttsNeutral"
           className="w-4 h-4 border"
         />
@@ -39,7 +39,7 @@ export const AgentIdFilter = () => {
       placeholder="Select Agent"
       className="h-9"
       options={options}
-      value={filters.agentId ?? ""}
+      value={filters.agentId ?? undefined}
       onSelect={(value) => setFilters({ agentId: value })}
       onSearch={setAgentSearch}
     />

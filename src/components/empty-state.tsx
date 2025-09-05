@@ -5,12 +5,16 @@ import React from "react";
 interface Props {
   title: string;
   description: string;
+  image?: string
 }
 
-export const EmptyState: React.FC<Props> = ({ title, description }) => {
+export const EmptyState: React.FC<Props> = ({ 
+  title,
+  description,
+image = "/empty.svg" }) => {
   return (
     <div className="flex flex-col items-center justify-center text-center gap-y-4">
-      <Image src="/empty.svg" alt="Empty state illustration" width={240} height={240} />
+      <Image src={image} alt="Empty state illustration" width={240} height={240} />
       
       <AlertCircleIcon className="size-6 text-red-500" />
       

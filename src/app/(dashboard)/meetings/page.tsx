@@ -18,7 +18,8 @@ interface Prop {
   searchParams: Promise<SearchParams>;
 
 }
-const Page = async ({searchParams}: Props )=> {
+
+const Page = async ({searchParams}: Prop )=> {
   const filters = await loadSearchParams(searchParams);
 
   const session = await auth.api.getSession({
@@ -36,6 +37,7 @@ const Page = async ({searchParams}: Props )=> {
     })
   );
 
+  
   return (
   <>
   <MeetingsListHeader />

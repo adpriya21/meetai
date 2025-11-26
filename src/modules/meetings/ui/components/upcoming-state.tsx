@@ -21,7 +21,6 @@ export const Upcoming = ({
         title="Not started yet"
         description="Once you start this meeting, a summary will appear here"
       />
-
       <div className="flex flex-col-reverse lg:flex-row lg:justify-center items-center gap-2 w-full">
         {/* Cancel Meeting Button */}
         <Button
@@ -30,17 +29,16 @@ export const Upcoming = ({
           onClick={onCancelMeeting}
           disabled={isCancelling}
         >
-          <BanIcon className="w-4 h-4" />
-          {isCancelling ? "Cancelling..." : "Cancel Meeting"}
+          <BanIcon />
+          cancel meeting
         </Button>
-
-        {/* Start Meeting Button */}
-        <Button asChild className="w-full lg:w-auto flex items-center gap-2">
-          <Link href={`/call/${meetingId}`}>
-            <VideoIcon className="w-4 h-4" />
-            Start Meeting
-          </Link>
-        </Button>
+<Button disabled={isCancelling} asChild className="w-full lg:w-auto">
+  <Link href={`/call/${meetingId}`}>
+  <VideoIcon/>
+  start meeting
+  </Link>
+</Button>
+        
       </div>
     </div>
   );

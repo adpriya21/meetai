@@ -1,4 +1,3 @@
-
 import  Link from "next/link";
 
 
@@ -25,6 +24,3 @@ export const CallEnded = () => {
         </div>
     )
 }
-
-
-

@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
-import { getQueryClient, trpc } from "@/trpc/server";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { getQueryClient } from "@/trpc/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { trpc } from "@/trpc/server";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { CallView } from "@/modules/call/ui/views/call-view";
 
 interface Props {
@@ -11,10 +12,11 @@ interface Props {
   }>;
 }
 
-export const Page = async ({ params }: Props) => {
+const Page = async ({ params }: Props) => {
+  // ✅ MUST await params (Next.js 15 rule)
   const { meetingId } = await params;
 
-
+  // Get session
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -23,19 +25,16 @@ export const Page = async ({ params }: Props) => {
     redirect("/sign-in");
   }
 
-
-  //  call the function
+  // Prefetch meeting data
   const queryClient = getQueryClient();
 
-  //  prefetch query
   await queryClient.prefetchQuery(
-    trpc.meetings.getOne.queryOptions({ id: meetingId }),
+    trpc.meetings.getOne.queryOptions({ id: meetingId })
   );
 
-  // You probably also want to return a component with hydration
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-        <CallView meetingId={meetingId} />
+      <CallView meetingId={meetingId} />
     </HydrationBoundary>
   );
 };

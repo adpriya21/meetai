@@ -39,25 +39,26 @@ export const MeetingIdView = ({ meetingId }: Props) => {
   );
 
   // Remove mutation
-  const removeMeeting = useMutation({
-    mutationFn: (payload: { id: string }) => trpc.meetings.remove.mutate(payload),
+  const removeMeeting = useMutation(
+    trpc.meetings.remove.mutationOptions({
     onSuccess: () => {
       queryClient.invalidateQueries(trpc.meetings.getMany.queryOptions({}));
+      //todo: Invalidate free tier usage
       router.push("/meetings");
     },
-  });
-
+  }),
+  );
   const handleRemoveMeeting = async () => {
     const ok = await confirmRemove();
     if (!ok) return;
     await removeMeeting.mutateAsync({ id: meetingId });
   };
 
-  const isActive = data?.status === "active";
-  const isUpcoming = data?.status === "upcoming";
-  const isCancelled = data?.status === "cancelled";
-  const isCompleted = data?.status === "completed";
-  const isProcessing = data?.status === "processing";
+  const isActive = data.status === "active";
+  const isUpcoming = data.status === "upcoming";
+  const isCancelled = data.status === "cancelled";
+  const isCompleted = data.status === "completed";
+  const isProcessing = data.status === "processing";
 
   return (
     <>
@@ -70,7 +71,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
       <div className="flex-1 py-4 px-8 flex flex-col gap-y-4">
         <MeetingIdViewHeader
           meetingId={meetingId}
-          meetingName={data?.name}
+          meetingName={data.name}
           onEdit={() => setUpdateMeetingDialogOpen(true)}
           onRemove={handleRemoveMeeting}
         />
@@ -91,17 +92,21 @@ export const MeetingIdView = ({ meetingId }: Props) => {
 };
 
 // Loading Component
-export const MeetingIdViewLoading = () => (
+export const MeetingIdViewLoading = () => {
+  return (
   <LoadingState
     title="Loading Meeting"
     description="This may take a few seconds"
   />
 );
+};
 
 // Error Component
-export const MeetingIdViewError = () => (
+export const MeetingIdViewError = () => {
+  return(
   <ErrorState
     title="Error Loading Meeting"
     description="Something went wrong"
   />
 );
+};

@@ -38,7 +38,8 @@ export const CallConnect = ({
 
     const [client, setClient] = useState<StreamVideoClient>();
     useEffect(() => {
-        const _client = new StreamVideoClient({
+        // ✅ Use getOrCreateInstance
+        const _client = StreamVideoClient.getOrCreateInstance({
             apiKey: process.env.NEXT_PUBLIC_STREAM_VIDEO_API_KEY!,
             user: {
                 id: userId,
@@ -50,15 +51,15 @@ export const CallConnect = ({
 
         setClient(_client);
 
+        // ⚠️ Do not disconnect here — let the client persist
         return () => {
-            _client.disconnectUser();
             setClient(undefined);
         };
     }, [userId, userName, userImage, generateToken]);
 
     const [call, setCall] = useState<Call>();
     useEffect(() => {
-        if(!client) return;
+        if (!client) return;
 
         const _call = client.call("default", meetingId);
         _call.camera.disable();
@@ -66,17 +67,24 @@ export const CallConnect = ({
         setCall(_call);
 
         return () => {
-            if (_call.state.callingState !==CallingState.LEFT) {
+            if (_call.state.callingState !== CallingState.LEFT) {
                 _call.leave();
                 _call.endCall();
                 setCall(undefined);
             }
-        }
+        };
     }, [client, meetingId]);
 
-    if (!client || !call){
+    // 🔑 Handler to join the call when button is clicked
+    const handleJoin = async () => {
+        if (call) {
+            await call.join();
+        }
+    };
+
+    if (!client || !call) {
         return (
-            <div className="flex h-screen items-center justify-center bg-radial from-sidebar-accent to-sidebar  ">
+            <div className="flex h-screen items-center justify-center bg-radial from-sidebar-accent to-sidebar">
                 <LoaderIcon className="size-6 animate-spin text-white" />
             </div>
         );
@@ -91,3 +99,4 @@ export const CallConnect = ({
         
     );
 };
+

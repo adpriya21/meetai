@@ -1,5 +1,4 @@
-// Assuming a modern environment (Node.js v18+ or Browser) where fetch is global.
-// If using older Node.js, you might need: import { Response } from 'node-fetch';
+// lib/openai.ts
 
 /**
  * Converts an audio Blob into text using the OpenAI Whisper API.
@@ -7,31 +6,27 @@
  * @returns A Promise that resolves to the transcribed text.
  */
 async function convertAudioToText(audioBlob: Blob): Promise<string> {
-    try {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error("OPENAI_API_KEY environment variable is not set.");
-        }
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("NEXT_PUBLIC_OPENAI_API_KEY environment variable is not set.");
+    }
 
+    try {
         const formData = new FormData();
-        // The filename and type should reflect the actual audio format.
-        // 'audio.webm' is a common default for browser-recorded audio.
         formData.append('file', audioBlob, 'audio.webm'); 
         formData.append('model', 'whisper-1');
 
-        // Corrected URL: Direct path to the OpenAI transcription endpoint
         const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
             method: 'POST',
             headers: {
-                // Corrected: Using template literal (backticks) for Authorization header
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 
+                'Authorization': `Bearer ${apiKey}`, 
             },
             body: formData,
         });
 
         if (!response.ok) {
-            // Include status text for better error debugging
             const errorData = await response.text(); 
-            throw new Error(`OpenAI API Error ${response.status}: ${response.statusText}. Details: ${errorData}`);
+            throw new Error(`OpenAI STT API Error ${response.status}: ${response.statusText}. Details: ${errorData}`);
         }
 
         const data: { text: string } = await response.json();
@@ -45,45 +40,45 @@ async function convertAudioToText(audioBlob: Blob): Promise<string> {
 /**
  * Converts a string of text into an audio Blob using the OpenAI TTS API.
  * @param text The text string to convert to speech.
- * @param voice The voice to use (e.g., 'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'). Defaults to 'alloy'.
- * @param model The TTS model to use ('tts-1' or 'tts-1-hd'). Defaults to 'tts-1'.
  * @returns A Promise that resolves to an audio Blob (audio/mpeg).
  */
 async function convertTextToAudio(
     text: string, 
-    voice: string = 'alloy', 
+    voice: string = 'nova', 
     model: string = 'tts-1'
 ): Promise<Blob> {
-    try {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error("OPENAI_API_KEY environment variable is not set.");
-        }
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("NEXT_PUBLIC_OPENAI_API_KEY environment variable is not set.");
+    }
+    
+    // Check if the input text is empty before making the API call
+    if (!text || text.trim() === '') {
+        throw new Error("Input text for TTS cannot be empty.");
+    }
 
-        // Corrected URL: Direct path to the OpenAI speech endpoint
+    try {
         const response = await fetch('https://api.openai.com/v1/audio/speech', { 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // Corrected: Using template literal (backticks) for Authorization header
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({ 
-                text, 
+                // FIX APPLIED HERE: The API requires 'input'
+                input: text, 
                 model, 
                 voice,
-                response_format: 'mp3', // Explicitly request MP3 format
+                response_format: 'mp3',
             }),
         });
         
         if (!response.ok) {
-            // Include status text for better error debugging
             const errorData = await response.text();
-            throw new Error(`OpenAI API Error ${response.status}: ${response.statusText}. Details: ${errorData}`);
+            throw new Error(`OpenAI TTS API Error ${response.status}: ${response.statusText}. Details: ${errorData}`);
         }
 
-        // Get the raw audio data
         const audioBuffer = await response.arrayBuffer();
-        // Return the data as a Blob with the correct MIME type
         return new Blob([audioBuffer], { type: 'audio/mpeg' }); 
     } catch (error) {
         console.error('Error converting text to audio:', error);
@@ -91,5 +86,4 @@ async function convertTextToAudio(
     }
 }
 
-// Export the functions for use in other files.
 export { convertAudioToText, convertTextToAudio };

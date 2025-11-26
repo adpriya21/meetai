@@ -1,10 +1,22 @@
 import { db } from "@/db";
 import { agents, meetings } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
-
 import { z } from "zod";
-import { eq, sql, getTableColumns, and, ilike, desc, count, exists, } from "drizzle-orm";
-import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/constants";
+import {
+  eq,
+  sql,
+  getTableColumns,
+  and,
+  ilike,
+  desc,
+  count,
+} from "drizzle-orm";
+import {
+  DEFAULT_PAGE,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  MIN_PAGE_SIZE,
+} from "@/constants";
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schema";
 import { MeetingStatus } from "../types";
@@ -12,81 +24,99 @@ import { streamVideo } from "@/lib/stream-video";
 import { generateAvatarUri } from "@/lib/avatar";
 
 export const meetingsRouter = createTRPCRouter({
+  // -------------------------------------------------------------------------
+  // ✅ 1. Generate Stream Video Token
+  // -------------------------------------------------------------------------
   generateToken: protectedProcedure.mutation(async ({ ctx }) => {
+    // Upsert user in Stream
     await streamVideo.upsertUsers([
       {
-         id: ctx.auth.user.id,
-         name: ctx.auth.user.name,
-         role: "admin",
-         image:
-            ctx.auth.user.image ?? 
-            generateAvatarUri({ seed: ctx.auth.user.name, variant: "initials" }),
+        id: ctx.auth.user.id,
+        name: ctx.auth.user.name,
+        role: "admin",
+        image:
+          ctx.auth.user.image ??
+          generateAvatarUri({
+            seed: ctx.auth.user.name,
+            variant: "initials",
+          }),
       },
     ]);
 
-    const expirationTime = Math.floor(Date.now() / 1000) + 3600; //1 hour
-    const issuedAt = Math.floor(Date.now() / 1000) - 60;
+    // JWT token configuration
+    const currentTime = Math.floor(Date.now() / 1000);
+    const expirationTime = currentTime + 3600; // expires in 1 hour
+    const issuedAt = currentTime - 60; // issued 1 minute earlier to avoid clock drift
 
     const token = streamVideo.generateUserToken({
       user_id: ctx.auth.user.id,
       exp: expirationTime,
-      validity_in_seconds: issuedAt,
+      iat: issuedAt, // Correct field name
     });
 
     return token;
   }),
 
+  // -------------------------------------------------------------------------
+  // ✅ 2. Remove Meeting
+  // -------------------------------------------------------------------------
   remove: protectedProcedure
-    .input(z.object({id: z.string()}))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const [removedMeeting] = await db
         .delete(meetings)
         .where(
-          and(eq(meetings.id, input.id),
-           eq(meetings.userId, ctx.auth.user.id))
+          and(
+            eq(meetings.id, input.id),
+            eq(meetings.userId, ctx.auth.user.id)
+          )
         )
         .returning();
 
       if (!removedMeeting) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "meeting not found",
+          message: "Meeting not found or unauthorized access",
         });
       }
 
       return removedMeeting;
     }),
 
-
-
-
-update: protectedProcedure
+  // -------------------------------------------------------------------------
+  // ✅ 3. Update Meeting
+  // -------------------------------------------------------------------------
+  update: protectedProcedure
     .input(meetingsUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       const [updatedMeeting] = await db
         .update(meetings)
         .set(input)
         .where(
-          and(eq(meetings.id, input.id),
-           eq(meetings.userId, ctx.auth.user.id))
+          and(
+            eq(meetings.id, input.id),
+            eq(meetings.userId, ctx.auth.user.id)
+          )
         )
         .returning();
 
       if (!updatedMeeting) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "meeting not found",
+          message: "Meeting not found or unauthorized access",
         });
       }
 
       return updatedMeeting;
     }),
 
-
-  // Create new meeting
+  // -------------------------------------------------------------------------
+  // ✅ 4. Create Meeting
+  // -------------------------------------------------------------------------
   create: protectedProcedure
     .input(meetingsInsertSchema)
     .mutation(async ({ input, ctx }) => {
+      // Create in database
       const [createdMeeting] = await db
         .insert(meetings)
         .values({
@@ -95,14 +125,14 @@ update: protectedProcedure
         })
         .returning();
 
-      // TODO: create stream call, upstream users
+      // Create Stream call
       const call = streamVideo.video.call("default", createdMeeting.id);
       await call.create({
         data: {
           created_by_id: ctx.auth.user.id,
           custom: {
             meetingId: createdMeeting.id,
-            meetingName: createdMeeting.name
+            meetingName: createdMeeting.name,
           },
           settings_override: {
             transcription: {
@@ -115,22 +145,23 @@ update: protectedProcedure
               quality: "1080p",
             },
           },
-        }, 
+        },
       });
 
-      const [ existingAgent ] = await db
+      // Verify agent exists
+      const [existingAgent] = await db
         .select()
         .from(agents)
         .where(eq(agents.id, createdMeeting.agentId));
 
-       
-      if (!existingAgent)   {
+      if (!existingAgent) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Agent Not Found",
+          message: "Agent not found",
         });
       }
 
+      // Upsert agent to Stream
       await streamVideo.upsertUsers([
         {
           id: existingAgent.id,
@@ -138,42 +169,50 @@ update: protectedProcedure
           role: "user",
           image: generateAvatarUri({
             seed: existingAgent.name,
-            variant: "botttsNetrual"
+            variant: "botttsNeutral",
           }),
         },
       ]);
 
-
       return createdMeeting;
     }),
 
-  // Get single meeting
+  // -------------------------------------------------------------------------
+  // ✅ 5. Get Single Meeting
+  // -------------------------------------------------------------------------
   getOne: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
       const [existingMeeting] = await db
         .select({
           ...getTableColumns(meetings),
-          agent : agents,
-          duration: sql<number>`EXTRACT(EPOCH FROM (ended_at - started_at))`.as("duration"),
+          agent: agents,
+          duration: sql<number>`EXTRACT(EPOCH FROM (ended_at - started_at))`.as(
+            "duration"
+          ),
         })
         .from(meetings)
         .innerJoin(agents, eq(meetings.agentId, agents.id))
         .where(
-          and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id))
+          and(
+            eq(meetings.id, input.id),
+            eq(meetings.userId, ctx.auth.user.id)
+          )
         );
 
       if (!existingMeeting) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Meeting not found",
+          message: "Meeting not found or unauthorized access",
         });
       }
 
       return existingMeeting;
     }),
 
-  // Fetch all meetings with pagination & search
+  // -------------------------------------------------------------------------
+  // ✅ 6. Get Many Meetings (Paginated + Search + Filter)
+  // -------------------------------------------------------------------------
   getMany: protectedProcedure
     .input(
       z
@@ -186,39 +225,47 @@ update: protectedProcedure
             .default(DEFAULT_PAGE_SIZE),
           search: z.string().nullish(),
           agentId: z.string().nullish(),
-          status: z.enum([
-            MeetingStatus.Upcoming,
-            MeetingStatus.Active,
-            MeetingStatus.Completed,
-            MeetingStatus.Processing,
-            MeetingStatus.Cancelled,
-          ]).nullish(),
+          status: z
+            .enum([
+              MeetingStatus.Upcoming,
+              MeetingStatus.Active,
+              MeetingStatus.Completed,
+              MeetingStatus.Processing,
+              MeetingStatus.Cancelled,
+            ])
+            .nullish(),
         })
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const { search, page = DEFAULT_PAGE, pageSize = DEFAULT_PAGE_SIZE , status, agentId } =
-        input || {};
+      const {
+        search,
+        page = DEFAULT_PAGE,
+        pageSize = DEFAULT_PAGE_SIZE,
+        status,
+        agentId,
+      } = input || {};
+
+      // Build WHERE conditions
+      const whereConditions = and(
+        eq(meetings.userId, ctx.auth.user.id),
+        search ? ilike(meetings.name, `%${search}%`) : undefined,
+        status ? eq(meetings.status, status) : undefined,
+        agentId ? eq(meetings.agentId, agentId) : undefined
+      );
 
       // Fetch paginated meetings
       const data = await db
         .select({
           ...getTableColumns(meetings),
           agent: agents,
-          duration: sql<number>`EXTRACT(EPOCH FROM (ended_at - started_at))`.as("duration"),
+          duration: sql<number>`EXTRACT(EPOCH FROM (ended_at - started_at))`.as(
+            "duration"
+          ),
         })
         .from(meetings)
         .innerJoin(agents, eq(meetings.agentId, agents.id))
-        .where(
-          and(
-            eq(meetings.userId, ctx.auth.user.id),
-            search ? ilike(meetings.name, `%${search}%`) : undefined,
-            status ? eq(meetings.status, status): undefined,
-            agentId ? eq(meetings.agentId, agentId): undefined,
-
-
-          )
-        )
+        .where(whereConditions)
         .orderBy(desc(meetings.createdAt), desc(meetings.id))
         .limit(pageSize)
         .offset((page - 1) * pageSize);
@@ -227,14 +274,7 @@ update: protectedProcedure
       const [total] = await db
         .select({ count: count() })
         .from(meetings)
-        .where(
-          and(
-            eq(meetings.userId, ctx.auth.user.id),
-            search ? ilike(meetings.name, `%${search}%`) : undefined,
-             status ? eq(meetings.status, status): undefined,
-            agentId ? eq(meetings.agentId, agentId): undefined,
-          )
-        );
+        .where(whereConditions);
 
       const totalPages = Math.ceil(Number(total.count) / pageSize);
 
